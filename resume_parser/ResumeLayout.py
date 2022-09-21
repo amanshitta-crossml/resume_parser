@@ -335,7 +335,7 @@ class ResumeRecon:
                         right_sec_words.append(word)
                         formed_headers[page].remove(word)
             
-            if right_sec_words:
+            if right_sec_words and left_sec_words:
                 left_col_left = min([i.get('x0') for i in left_sec_words])
                 left_col_top = min([i.get('top') for i in left_sec_words])
                 left_col_right = min([i.get('x0') for i in right_sec_words])
@@ -349,7 +349,7 @@ class ResumeRecon:
 
                 left_sec = {'x0': left_col_left, 'top': left_col_top, 'x1': left_col_right, 'bottom': bottom}
                 right_sec = {'x0': right_col_left, 'top': right_col_top, 'x1': right_col_right, 'bottom': bottom}
-            else:
+            elif not right_sec_words:
                 left_col_left = min([i.get('x0') for i in left_sec_words])
                 left_col_top = min([i.get('top') for i in left_sec_words])
                 left_col_right = pdf_width
@@ -358,6 +358,15 @@ class ResumeRecon:
 
                 left_sec = {'x0': left_col_left, 'top': left_col_top, 'x1': left_col_right, 'bottom': bottom}
                 right_sec = {'x0': 0, 'top': 0, 'x1': 0, 'bottom': 0}
+            else:
+                right_col_left = min([i.get('x0') for i in right_sec_words])-20
+                right_col_top = min([i.get('top') for i in right_sec_words])
+                right_col_right = pdf_width
+
+                bottom = pdf_height
+
+                left_sec = {'x0': 0, 'top': 0, 'x1': 0, 'bottom': 0}
+                right_sec = {'x0': right_col_left, 'top': right_col_top, 'x1': right_col_right, 'bottom': bottom}
 
             sections[page]['left'] = left_sec
             sections[page]['right'] = right_sec
@@ -382,9 +391,9 @@ class ResumeRecon:
                         word['top'] >= section[div]['top'] and \
                             word['x1'] <= section[div]['x1'] and \
                                 word['bottom'] <= section[div]['bottom']):
-                        
-                        self.columns[page][div].append(word)
-                        self.columns[page]['free_div'].remove(word)
+
+                            self.columns[page][div].append(word)
+                            self.columns[page]['free_div'].remove(word) if (word in self.columns[page]['free_div']) else ''
 
     def segment_header_words(self):
         self.segments = {}
