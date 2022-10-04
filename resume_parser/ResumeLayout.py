@@ -5,6 +5,7 @@ from math import ceil, floor
 import pdfplumber
 from fuzzywuzzy import process, fuzz, utils
 from resume_parser.layout_config import RESUME_HEADERS
+# from layout_config import RESUME_HEADERS
 from sentence_transformers import SentenceTransformer, util
 
 def fun_k(N: int):
@@ -391,7 +392,6 @@ class ResumeRecon:
                     if len(word_list)<50:
                         
                         match_score = get_match_score([i['text'] for i in word_list])
-                        print(head_tag, [i['text'] for i in word_list], match_score)
                         #  and (len(word_list)/match_score)*100>50:
                         if match_score>0:
                             page_headers[page].append(head_tag)
@@ -413,7 +413,6 @@ class ResumeRecon:
         sections = {}
         for page in formed_headers:
             self.columns[page] = {}
-            print(f"[+] FOUND HEADERS :: {[i['text'] for i in formed_headers[page]]} [+]")
             sections[page] = {}
             pdf_width = self.pages_shape[page].get('width')
             pdf_height = self.pages_shape[page].get('height')
