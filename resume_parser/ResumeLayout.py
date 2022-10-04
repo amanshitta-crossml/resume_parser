@@ -1,6 +1,4 @@
-from curses.ascii import isupper
 import os
-from platform import machine
 import re
 import math
 from math import ceil, floor
@@ -356,7 +354,7 @@ class ResumeRecon:
                     idxx = 0
                     self.color_cap_tags[h_tag][font_type] = {}
                     for word in data:
-                        CAP = 'UP' if all([e.isupper() for e in word['text']]) else 'DOWN'
+                        CAP = 'UP' if word['text'].isupper() else 'DOWN'
                         if word.get('stroking_color') in [i[0] for i in color_coding]:
                             color_cap = f"{[i for i in color_coding if i[0] == word.get('stroking_color')][0][1]}_{CAP}"
                         else:
