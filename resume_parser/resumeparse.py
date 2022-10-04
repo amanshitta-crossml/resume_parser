@@ -4,6 +4,7 @@ import re
 import os
 from datetime import date
 from fuzzywuzzy import process
+import spacy
 
 import nltk
 import docx2txt
@@ -52,6 +53,7 @@ patterns = [nlp.make_doc(text) for text in skill if len(nlp.make_doc(text)) < 10
 skillsmatcher.add("Job title", None, *patterns)
 
 
+nlp = spacy.load('en_core_web_sm')
 class resumeparse(object):
 
     def convert_docx_to_txt(docx_file,docx_parser):
@@ -230,7 +232,7 @@ class resumeparse(object):
         regex_result = re.search(regular_expression, resume_text)
         
         while regex_result:
-          
+
           try:
             date_range = regex_result.group()
             # print(date_range)
@@ -362,6 +364,20 @@ class resumeparse(object):
             return span.text
         return ""
 
+    def extract_location(resume_text):
+        
+        location = ''
+        try:         
+            parsed_addr = nlp(resume_text)
+            # breakpoint()
+            for ent in parsed_addr.ents:
+                if ent.label_ == 'GPE':
+                    location = ent.text
+                    break
+        except Exception as e:
+            print("attributes_extraction (libpostal): error: ", e)
+        return location
+
     def extract_university(text, file):
         df = pd.read_csv(file, header=None)
         universities = [i.lower() for i in df[1]]
@@ -428,7 +444,7 @@ class resumeparse(object):
         
         doc_headers, sections, res_segments = resume.process_resume()
         resume_lines = []
-        for page, cols in sections.items():
+        for page, cols in res_segments.items():
             for _, col in cols.items():
                 resume_lines += [i['text'] for i in col]
 
@@ -443,13 +459,14 @@ class resumeparse(object):
 
         name = resumeparse.extract_name(" ".join(resume_segments['contact_info']['lines']))
 
+        location = resumeparse.extract_location(" ".join(resume_segments['contact_info']['lines']))
+
         total_exp, text = resumeparse.get_experience(resume_segments)
 
         university = resumeparse.extract_university(' '.join(resume_segments['education_and_training']['lines']), os.path.join(base_path,'world-universities.csv'))
 
         skills = ""
 
-        
         if len(skills) == 0 and resume_segments['skills']:
             skills = resumeparse.extract_skills(' '.join(resume_segments['skills']['sentences']))
         skills = list(dict.fromkeys(skills).keys())
@@ -459,6 +476,7 @@ class resumeparse(object):
             "phone": phone,
             "name": name,
             "total_exp": total_exp,
+            "location": location,
             "university": university,
             "certificate": resume_segments['certificate']['sentences'],
             'projects': resume_segments['projects']['sentences'],
@@ -466,11 +484,5 @@ class resumeparse(object):
             "interests": resume_segments['interests']['sentences'],
             "education": resume_segments['education_and_training']['lines'],
             "skills": skills,
-            "experience": resume_segments['work_and_employment']['sentences']
+            "experience": resume_segments['work_and_employment']['lines']
         }
-
-
-if __name__ == "__main__":
-    file = "/home/aman/projects/resume/tests/samples/Dhayanand_Resume.pdf"
-    data = resumeparse.read_file(file)
-    print(data)
