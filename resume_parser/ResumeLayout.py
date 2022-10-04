@@ -1,8 +1,7 @@
-from curses.ascii import isupper
 import os
 import re
 import math
-from math import ceil
+from math import ceil, floor
 import pdfplumber
 from fuzzywuzzy import process, fuzz, utils
 from resume_parser.layout_config import RESUME_HEADERS
@@ -30,6 +29,20 @@ def get_match_score(header_list):
         print("get_match_score :: Exception :: ", str(e))
     # print("avg_score :: ",avg_score)
     return avg_score
+
+def get_valid_headers(header_list):
+    new_list = []
+    try:
+        count = 0
+        for word in header_list:
+            for word_list in RESUME_HEADERS.values():
+                for wordx in word_list:
+                    if fuzz.ratio(wordx.lower(), word['text'].lower())>85:
+                        new_list.append(word)
+                        break
+    except Exception as e:
+        print("get_match_score :: Exception :: ", str(e))
+    return new_list
 
 def get_cosin_similarity(header_list:list):
     # print("header_list :: ", header_list)
@@ -185,7 +198,7 @@ def form_sentences(lines_list):
 
     line_diff_list = [formed_line[idx+1]['top']-formed_line[idx]['bottom'] for idx in range(len(formed_line)-1) if (formed_line[idx+1]['top']-formed_line[idx]['bottom']>0 and  formed_line[idx+1]['top']-formed_line[idx]['bottom'] < 1.5*(formed_line[idx]['bottom'] - formed_line[idx]['top']))]
     if len(line_diff_list):
-        avg_height_diff = ceil(sum(line_diff_list)/len(line_diff_list))
+        avg_height_diff = floor(sum(line_diff_list)/len(line_diff_list))
 
     else: avg_height_diff = 1
 
@@ -211,6 +224,7 @@ class ResumeRecon:
     def __init__(self, path):
         self.pages_shape = {}
         self.headers = {}
+        self.bold_letters = {}
         self.columns = {}
         self.chars = {}
         self.words = {}
@@ -257,7 +271,7 @@ class ResumeRecon:
                         temp_words = []
 
             self.bold_letters[page] = words
-    
+
     def get_height_based_seggregated_words(self):
         data = self.words
         self.height_data  = {}
@@ -271,11 +285,12 @@ class ResumeRecon:
         except Exception as e:
             print("Exception :: get_height_based_seggregated_words :: ", str(e))
 
-    def identify_header_tags(self):
+    def seggeregate_heigth_based_header_tags(self, data):
+        """
+        calculating a distribution of heights
+        assign tags to a height intervals
+        """
         self.header_tags = {}
-        self.word_tags = {}
-        data = self.height_data
-
         for page in data:
             total_classes = []
 
@@ -305,14 +320,21 @@ class ResumeRecon:
                 
                 self.header_tags[page] = tag_heights
 
-        self.segg_wc = {}
+    def identify_header_tags(self):
+        self.word_tags = {}
+        data = self.height_data
+
+        self.seggeregate_heigth_based_header_tags(data)
+
+        self.color_cap_tags = {}
+        self.font_type_tags = {}
+        idx = 0
         # seggregate beight data based on font type
         for page, h_tags_data in self.header_tags.items():
+            self.word_tags[page] = {}
             page_words = {}
-            idx = 0
-            self.segg_wc[page] = []
             for h_tag, heights in h_tags_data.items():
-                self.font_type_tags = {h_tag: {}}
+                self.font_type_tags[h_tag] =  {}
                 for height in heights:
                     same_height_words = [i for i in self.height_data[page][str(height)]]
                     last_font = ''
@@ -322,53 +344,39 @@ class ResumeRecon:
                             self.font_type_tags[h_tag].update({last_font: [word]})
                         else:
                             self.font_type_tags[h_tag][last_font].append(word)
-                    
-                    self.color_cap_tags = {}
-                    for font_type, data in self.font_type_tags[h_tag].items():
-                        color_cap = ''
-                        color_coding = []
-                        idxx = 0
-                        for word in data:
-                            if word.get('stroking_color') in [i[0] for i in color_coding]:
-                                color_cap = f"{[i for i in color_coding if i[0] == word.get('stroking_color')][0][1]}"
-                            else:
-                                color_cap = f"c{idxx}"
-                                color_coding.append((word.get('stroking_color'),f"c{idxx}"))
-                                idxx += 1
-                            if color_cap not in self.color_cap_tags:
-                                self.color_cap_tags.update({color_cap: [word]}) 
-                            else:
-                                self.color_cap_tags[color_cap].append(word)
 
-                    # self.color_cap_tags = {}
-                    # for font_type, data in self.font_type_tags[h_tag].items():
-                    #     color_cap = ''
-                    #     color_coding = []
-                    #     idxx = 0
-                    #     for word in data:
-                    #         CAP = 'UP' if all([e.isupper() for e in word['text']]) else 'DOWN'
-                    #         if word.get('stroking_color') in [i[0] for i in color_coding]:
-                    #             color_cap = f"{[i for i in color_coding if i[0] == word.get('stroking_color')][0][1]}_{CAP}"
-                    #         else:
-                    #             color_cap = f"c{idxx}_{CAP}"
-                    #             color_coding.append((word.get('stroking_color'),f"c{idxx}"))
-                    #             idxx += 1
-                    #         if color_cap not in self.color_cap_tags:
-                    #             self.color_cap_tags.update({color_cap: [word]}) 
-                    #         else:
-                    #             self.color_cap_tags[color_cap].append(word) 
-                
-                for color_cap, words in self.color_cap_tags.items():
-                    # for words in color_cap.items():
-                    word_lines = []
-                    font_lines = form_sentences(words)[1]
-                    for l_idx, line in enumerate(font_lines):
-                        if len(line['text'].split())<5:
-                            word_lines.append(line)
-                    page_words[f"head{idx}"] = word_lines
-                    idx+=1
+            for h_tag, font_type_tags in self.font_type_tags.items():
+                self.color_cap_tags[h_tag] = {}
 
-            self.word_tags[page] = page_words
+                for font_type, data in font_type_tags.items():
+                    color_cap = ''
+                    color_coding = []
+                    idxx = 0
+                    self.color_cap_tags[h_tag][font_type] = {}
+                    for word in data:
+                        CAP = 'UP' if word['text'].isupper() else 'DOWN'
+                        if word.get('stroking_color') in [i[0] for i in color_coding]:
+                            color_cap = f"{[i for i in color_coding if i[0] == word.get('stroking_color')][0][1]}_{CAP}"
+                        else:
+                            color_cap = f"c{idxx}_{CAP}"
+                            color_coding.append((word.get('stroking_color'),f"c{idxx}"))
+                            idxx += 1
+                        if color_cap not in self.color_cap_tags[h_tag][font_type]:
+                            self.color_cap_tags[h_tag][font_type].update({color_cap: [word]}) 
+                        else:
+                            self.color_cap_tags[h_tag][font_type][color_cap].append(word) 
+
+                for font, color_cap_tags in self.color_cap_tags[h_tag].items():
+                    for color_cap_tag, words in color_cap_tags.items():
+                        word_lines = []
+                        font_lines = form_sentences(words)[1]
+                        for l_idx, line in enumerate(font_lines):
+                            if len(line['text'].split()) < 5:
+                                word_lines.append(line)
+                        page_words[f"head{idx}"] = word_lines
+                        idx+=1
+
+            self.word_tags[page].update(page_words)
 
     def get_possible_header_words(self):
         identified_header = 0
@@ -377,25 +385,29 @@ class ResumeRecon:
         try:
             for page, tagged_words in self.word_tags.items():
                 self.formed_headers[page] = []
-                identified_header = 0
-                for tag, word_list in tagged_words.items():
+                page_headers[page] = []
+                self.headers[page] = []
+                for head_tag, word_list in tagged_words.items():
                     if len(word_list)<50:
+                        
                         match_score = get_match_score([i['text'] for i in word_list])
-                        if match_score > identified_header:
-                            identified_header = match_score
-                            page_headers[page] = tag
+                        print(head_tag, [i['text'] for i in word_list], match_score)
+                        #  and (len(word_list)/match_score)*100>50:
+                        if match_score>0:
+                            page_headers[page].append(head_tag)
 
-            for page, htag in page_headers.items():
-                self.headers[page] = self.word_tags[page][htag]
+            for page, htags in page_headers.items():
+                for htag in htags:
+                    self.headers[page].extend(self.word_tags[page][htag])
         
         except Exception as e:
             print("get_possible_header_words :: Exception :: ", str(e))
 
         for page, words_list in self.headers.items():
             formed_word_list = form_sentences(words_list)[1]
-            # [i['text'] for i in formed_word_list]
+            formed_word_list = get_valid_headers(words_list)
             self.formed_headers[page] = formed_word_list
-
+            
     def seggregate_columns(self):
         formed_headers = self.formed_headers.copy()
         sections = {}
@@ -434,24 +446,23 @@ class ResumeRecon:
             self.columns[page]['right'] = []
             self.columns[page]['left'] = []
             self.columns[page]['free_div'] = []
-
             for word in self.words[page]:
                 # left region words
-                if (word['x0'] >= left_region['x0'] and \
+                if left_sec_headers and (word['x0'] >= left_region['x0'] and \
                                     word['top'] >= left_region['top'] and \
                                         word['x1'] < left_region['x1'] and \
                                             word['x0'] < left_region['x1'] and \
                                                 word['bottom'] <= left_region['bottom']):
                     self.columns[page]['left'].append(word)
                 # right sec words
-                elif (word['x0'] >= right_region['x0'] and \
+                elif right_sec_headers and (word['x0'] >= right_region['x0'] and \
                         word['top'] >= right_region['top'] and \
                             word['x1'] <= right_region['x1'] and \
                                 word['bottom'] <= right_region['bottom']):
                     self.columns[page]['right'].append(word)
                 else:
                     self.columns[page]['free_div'].append(word)
-    
+
     def segment_header_words(self):
         self.segments = {}
         gram_words = {}

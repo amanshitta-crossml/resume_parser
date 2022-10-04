@@ -11,6 +11,8 @@ RESUME_HEADERS = {
         'objective', 
         'profile', 
         'career goal',
+        'personal profile'
+        'personal statement'
         'career objective',
         'employment objective',
         'professional objective',        
@@ -18,6 +20,7 @@ RESUME_HEADERS = {
         'professional summary',
         'summary of qualifications',
         'summary',
+        'synopsis'
         ],
     'projects':[
         'projects',
@@ -27,14 +30,21 @@ RESUME_HEADERS = {
     'contact_info':[
         'about',
         'contact',
-        'personal info', 
+        'contact me at',
+        'personal info',
+        'personal information', 
         'personal profile',
+        'personal details',
+        'get in contact',
+        'personal summary'
         ],
     'skills':[
         'skills and rating',
         'skills',
         'key skills',
+        'skills summary',
         'credentials',
+        'EXPERTISE',
         'areas of experience',
         'areas of knowledge',
         'AREAS OF EXPERTISE',
@@ -42,6 +52,7 @@ RESUME_HEADERS = {
         "other abilities",
         'career related skills',
         'KEY SKILLS AND COMPETENCIES',
+        'skills & proficiencies',
         'professional skills',
         'specialized skills',
         'technical skills',
@@ -89,7 +100,6 @@ RESUME_HEADERS = {
         'academic background',
         'academic experience',
         'programs',
-        'courses',
         'related courses',
         'education',
         'qualifications',
@@ -105,6 +115,7 @@ RESUME_HEADERS = {
         'interests',
         'other skills',
         'Personal Skill',
+        'hobbies and interest',
         'inter personal skills',
         'inter-personal skills',
         'interpersonal skills'
