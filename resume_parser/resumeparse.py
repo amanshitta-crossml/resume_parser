@@ -22,8 +22,11 @@ import nltk
 from stemming.porter2 import stem
 from fuzzywuzzy import fuzz
 
-from resume_parser.ResumeLayout import ResumeRecon, form_sentences
+from resume_parser.ResumeLayout import ResumeLayoutParser, form_sentences
 from resume_parser.layout_config import RESUME_HEADERS
+
+# from ResumeLayout import ResumeLayoutParser, form_sentences
+# from layout_config import RESUME_HEADERS
 
 from test import *
 # load pre-trained model
@@ -162,14 +165,15 @@ class resumeparse(object):
             logging.error('Error in docx file:: ' + str(e))
             return [], " "
             
-    def segment(res_segments):
+    def segment(res_segments, subsections):
         resume_segments = {}
+        resume_subsections = {}
         # resume_segments = dict.fromkeys(RESUME_HEADERS.keys(), [])
         try:
             for header_section, keywords in RESUME_HEADERS.items():
                 resume_segments[header_section] = resume_segments.get(header_section, [])
                 # objecttive, skills, work_and_employment
-                for _, header_segments in res_segments.items():
+                for pg, header_segments in res_segments.items():
                     # 0, {'SKILLS': [{word1}, {word2}]}
                     for header, header_words in header_segments.items():
                         # SKILLS, [{word1}, {word2}]}
@@ -177,6 +181,7 @@ class resumeparse(object):
                             # [carrier, goal, skills, projects ....]
                             if fuzz.ratio(header.lower(), keyword.lower()) >= 90:
                                 resume_segments[header_section] = header_words
+                                resume_subsections[header_section] = subsections[pg][header]
 
             for segment in resume_segments:
                 if not resume_segments[segment] and segment in ['contact_info', 'objective']:
@@ -184,7 +189,7 @@ class resumeparse(object):
 
         except Exception as e:
             print("Exception :: segment :: ", str(e))
-        return resume_segments
+        return resume_segments, resume_subsections
 
     def calculate_experience(resume_text):
         
@@ -440,17 +445,19 @@ class resumeparse(object):
 
         file = os.path.join(file)
 
-        resume = ResumeRecon(file)
+        resume = ResumeLayoutParser(file)
         
-        doc_headers, sections, res_segments = resume.process_resume()
+        doc_headers, res_segments, subsections = resume.process_resume()
+
         resume_lines = []
         for page, cols in res_segments.items():
             for _, col in cols.items():
                 resume_lines += [i['text'] for i in col]
 
-        resume_segments = resumeparse.segment(res_segments)
+        resume_segments,    resume_subsections = resumeparse.segment(res_segments, subsections)
+
         for key, segment in resume_segments.items():
-            lines, sentences = form_sentences(segment)
+            lines, sentences, _ = form_sentences(segment)
             resume_segments.update({key: {'lines': [i['text'] for i in lines], 'sentences': [i['text'] for i in sentences]}})
 
         email = resumeparse.extract_email(' '.join(resume_segments['contact_info']['lines']))
@@ -467,10 +474,11 @@ class resumeparse(object):
 
         skills = ""
 
+        experience_subsections = [sorted(v, key=lambda o: (o['top'], o['x0'])) for v in resume_subsections['work_and_employment'].values()]
+
         if len(skills) == 0 and resume_segments['skills']:
             skills = resumeparse.extract_skills(' '.join(resume_segments['skills']['sentences']))
         skills = list(dict.fromkeys(skills).keys())
-
         return {
             "email": email,
             "phone": phone,
@@ -484,5 +492,5 @@ class resumeparse(object):
             "interests": resume_segments['interests']['sentences'],
             "education": resume_segments['education_and_training']['lines'],
             "skills": skills,
-            "experience": resume_segments['work_and_employment']['lines']
+            "experience": experience_subsections
         }
