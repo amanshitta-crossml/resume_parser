@@ -1,4 +1,3 @@
-from mer import bert_organisation
 import nltk
 
 import re
@@ -30,6 +29,20 @@ from ResumeLayout import ResumeLayoutParser, form_sentences
 from layout_config import RESUME_HEADERS
 
 from test import *
+
+# bert
+from transformers import AutoTokenizer, AutoModelForTokenClassification
+from transformers import pipeline
+
+def bert_organisation(line):
+    tokenizer = AutoTokenizer.from_pretrained("dslim/bert-base-NER")
+    model = AutoModelForTokenClassification.from_pretrained("dslim/bert-base-NER")
+
+    nlp = pipeline("ner", model=model, tokenizer=tokenizer)
+
+    ner_results = nlp(line.strip())
+    return ner_results
+
 # load pre-trained model
 base_path = os.path.dirname(__file__)
 
