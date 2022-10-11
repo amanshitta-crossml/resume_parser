@@ -102,7 +102,7 @@ def lines_concat_or_not(lines_list, avg_height_diff):
     
     return formed_sentence
 
-def lines_concat_or_not_par(lines_list, avg_height_diff, to_break=False):
+def lines_concat_or_not_par(lines_list, avg_height_diff):
     if not lines_list: return lines_list
     formed_sentence = []
     processed = []
@@ -192,7 +192,7 @@ def form_sentences(lines_list):
         sen = formed_sentences
         
         while True:
-            formed_paras = lines_concat_or_not_par(sen, avg_height_diff, to_break)
+            formed_paras = lines_concat_or_not_par(sen, avg_height_diff)
             if sen == formed_paras:
                 break
             sen = formed_paras
@@ -332,7 +332,6 @@ class ResumeLayoutParser():
         headers = []
         
         for column_name, column in column_data.items():
-                
             sorted_columns = sorted(column, key=lambda x:x['top'])
             headers.extend(sorted_columns)
             header_top_list = [col['top'] for col in sorted_columns]
@@ -352,9 +351,7 @@ class ResumeLayoutParser():
                     if not column_data.get('left', []):
                         left = 0 
             else:
-                header_pairs = list(zip(header_top_list, [self.img_dim[1]]))
-
-            free_div_cords = [0,0,0,min(header_top_list)]
+                header_pairs = list(zip(header_top_list, [self.img_dim[1]]))            
 
             for pair_index, header_pair in enumerate(header_pairs):
                 header_key = sorted_columns[pair_index]['text']
@@ -370,17 +367,16 @@ class ResumeLayoutParser():
                 if sections_data[header_key]:
                     sections_data[header_key] = sorted(sections_data[header_key], key=lambda x: (x['top'], x['x0']))
 
+            free_div_cords = [0,0,right,min(header_top_list)]
             for word in self.words[page]:
-
                 if word['top'] > free_div_cords[1] and\
                     word['bottom'] < free_div_cords[3] and\
-                    word['x1'] > free_div_cords[2] and\
-                    word['x0'] < free_div_cords[0]:                        
+                    word['x1'] < free_div_cords[2] and\
+                    word['x0'] > free_div_cords[0]:                        
                     sections_data['FREE_TEXT'].append(word)
 
             if sections_data['FREE_TEXT']:
                 sections_data['FREE_TEXT'] = sorted(sections_data['FREE_TEXT'], key=lambda x: (x['top'], x['x0']))
-
         return sections_data, headers
 
     @staticmethod
