@@ -22,11 +22,11 @@ import nltk
 from stemming.porter2 import stem
 from fuzzywuzzy import fuzz
 
-# from resume_parser.ResumeLayout import ResumeLayoutParser, form_sentences
-# from resume_parser.layout_config import RESUME_HEADERS
+from resume_parser.ResumeLayout import ResumeLayoutParser, form_sentences
+from resume_parser.layout_config import RESUME_HEADERS
 
-from ResumeLayout import ResumeLayoutParser, form_sentences
-from layout_config import RESUME_HEADERS
+# from ResumeLayout import ResumeLayoutParser, form_sentences
+# from layout_config import RESUME_HEADERS
 
 from test import *
 
