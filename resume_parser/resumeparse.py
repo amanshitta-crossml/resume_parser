@@ -22,10 +22,27 @@ import nltk
 from stemming.porter2 import stem
 from fuzzywuzzy import fuzz
 
-from resume_parser.ResumeLayout import ResumeRecon, form_sentences
-from resume_parser.layout_config import RESUME_HEADERS
+# from resume_parser.ResumeLayout import ResumeLayoutParser, form_sentences
+# from resume_parser.layout_config import RESUME_HEADERS
+
+from ResumeLayout import ResumeLayoutParser, form_sentences
+from layout_config import RESUME_HEADERS
 
 from test import *
+
+# bert
+from transformers import AutoTokenizer, AutoModelForTokenClassification
+from transformers import pipeline
+
+def bert_organisation(line):
+    tokenizer = AutoTokenizer.from_pretrained("dslim/bert-base-NER")
+    model = AutoModelForTokenClassification.from_pretrained("dslim/bert-base-NER")
+
+    nlp = pipeline("ner", model=model, tokenizer=tokenizer)
+
+    ner_results = nlp(line.strip())
+    return ner_results
+
 # load pre-trained model
 base_path = os.path.dirname(__file__)
 
@@ -162,14 +179,15 @@ class resumeparse(object):
             logging.error('Error in docx file:: ' + str(e))
             return [], " "
             
-    def segment(res_segments):
+    def segment(res_segments, subsections):
         resume_segments = {}
+        resume_subsections = {}
         # resume_segments = dict.fromkeys(RESUME_HEADERS.keys(), [])
         try:
             for header_section, keywords in RESUME_HEADERS.items():
                 resume_segments[header_section] = resume_segments.get(header_section, [])
                 # objecttive, skills, work_and_employment
-                for _, header_segments in res_segments.items():
+                for pg, header_segments in res_segments.items():
                     # 0, {'SKILLS': [{word1}, {word2}]}
                     for header, header_words in header_segments.items():
                         # SKILLS, [{word1}, {word2}]}
@@ -177,14 +195,15 @@ class resumeparse(object):
                             # [carrier, goal, skills, projects ....]
                             if fuzz.ratio(header.lower(), keyword.lower()) >= 90:
                                 resume_segments[header_section] = header_words
+                                resume_subsections[header_section] = subsections[pg][header]
 
             for segment in resume_segments:
                 if not resume_segments[segment] and segment in ['contact_info', 'objective']:
-                    resume_segments[segment] = header_segments['FREE_TEXT']
+                    resume_segments[segment] = res_segments[0]['FREE_TEXT']
 
         except Exception as e:
             print("Exception :: segment :: ", str(e))
-        return resume_segments
+        return resume_segments, resume_subsections
 
     def calculate_experience(resume_text):
         
@@ -432,6 +451,46 @@ class resumeparse(object):
         skills = list(set(skills))
         return skills
 
+    def parse_org_name(org):
+        org_list = [(i['word']) for i in org if 'ORG' in i['entity']]
+
+        org_name = ''
+        for org_token in org_list:
+            if org_token.startswith('##'):
+                org_token = org_token.lstrip('#')
+                org_name+=org_token
+            else:
+                org_name=org_name+' '+org_token
+
+        return org_name.strip()
+
+    def extract_work_employment(experience_subsections):
+        out = []
+        # Extract Organisation
+        for idx, subsection in experience_subsections.items():
+            subsection_lines = form_sentences(subsection)[0]
+            temp = {}
+            extra_text = []
+            for line in subsection_lines:
+                if not temp.get('organisation_name'):
+                    org = bert_organisation(line['text'])
+                    if org:
+                        org_name = resumeparse.parse_org_name(org)
+                        if org_name :
+                            temp = {"organisation_name": org_name}
+                            continue
+                
+                exp = resumeparse.calculate_experience(line['text'])
+                if exp:
+                    temp.update({"experience": exp})
+                    continue
+                else:
+                    extra_text.append(line)
+
+            temp.update({'job_role': [i['text'] for i in sorted(extra_text, key= lambda x: (x['top'], x['x1']))]})
+            out.append(temp)
+        return out
+
     def read_file(file,docx_parser = "tika"):
         """
         file : Give path of resume file
@@ -440,17 +499,19 @@ class resumeparse(object):
 
         file = os.path.join(file)
 
-        resume = ResumeRecon(file)
+        resume = ResumeLayoutParser(file)
         
-        doc_headers, sections, res_segments = resume.process_resume()
+        doc_headers, res_segments, subsections = resume.process_resume()
+
         resume_lines = []
         for page, cols in res_segments.items():
             for _, col in cols.items():
                 resume_lines += [i['text'] for i in col]
 
-        resume_segments = resumeparse.segment(res_segments)
+        resume_segments, resume_subsections = resumeparse.segment(res_segments, subsections)
+
         for key, segment in resume_segments.items():
-            lines, sentences = form_sentences(segment)
+            lines, sentences, _ = form_sentences(segment)
             resume_segments.update({key: {'lines': [i['text'] for i in lines], 'sentences': [i['text'] for i in sentences]}})
 
         email = resumeparse.extract_email(' '.join(resume_segments['contact_info']['lines']))
@@ -465,12 +526,13 @@ class resumeparse(object):
 
         university = resumeparse.extract_university(' '.join(resume_segments['education_and_training']['lines']), os.path.join(base_path,'world-universities.csv'))
 
-        skills = ""
+        skills = []
+
+        experience_subsections = resumeparse.extract_work_employment(resume_subsections['work_and_employment'])
 
         if len(skills) == 0 and resume_segments['skills']:
             skills = resumeparse.extract_skills(' '.join(resume_segments['skills']['sentences']))
         skills = list(dict.fromkeys(skills).keys())
-
         return {
             "email": email,
             "phone": phone,
@@ -484,5 +546,5 @@ class resumeparse(object):
             "interests": resume_segments['interests']['sentences'],
             "education": resume_segments['education_and_training']['lines'],
             "skills": skills,
-            "experience": resume_segments['work_and_employment']['lines']
+            "experience": experience_subsections
         }
