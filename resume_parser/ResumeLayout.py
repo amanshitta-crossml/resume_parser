@@ -4,7 +4,7 @@ import re
 from fuzzywuzzy import process, fuzz
 from itertools import tee
 from math import ceil, floor
-from layout_config import RESUME_HEADERS
+from resumeparse.layout_config import RESUME_HEADERS
 
 
 
