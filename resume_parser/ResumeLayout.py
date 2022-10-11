@@ -424,6 +424,11 @@ class ResumeLayoutParser():
                                                         top,
                                                         max([i['x1'] for i in section_data[section]]), 
                                                         max([i['bottom'] for i in section_data[section]]))
+        else:
+            sub_sections[0] = (min([i['x0'] for i in section_data[section]]), 
+                                min([i['top'] for i in section_data[section]]),
+                                max([i['x1'] for i in section_data[section]]), 
+                                max([i['bottom'] for i in section_data[section]]))
         return sub_sections
 
     def detect_subsection(self, section_data, headers):
@@ -439,9 +444,6 @@ class ResumeLayoutParser():
                     sub_sections[section] = full_region
             else:
                 sub_sections[section][0] = full_region
-                
-            
-            
 
         return sub_sections
 
@@ -473,12 +475,13 @@ class ResumeLayoutParser():
                 words = self.words[page]
                 word_dict, sentence_dict = self.find_possble_header(words)
                 matched_header_list = self.match_header(sentence_dict)
-                self.column_data[page] = self.detect_column(matched_header_list)
-                section_data, headers = self.detect_section(page, self.column_data[page])
-                subsec_words = self.get_subsection_words(page, section_data, headers)
-                self.res_segments[page] = section_data
-                self.doc_headers[page] = headers
-                self.subsection_words[page] = subsec_words
+                if matched_header_list:
+                    self.column_data[page] = self.detect_column(matched_header_list)
+                    section_data, headers = self.detect_section(page, self.column_data[page])
+                    subsec_words = self.get_subsection_words(page, section_data, headers)
+                    self.res_segments[page] = section_data
+                    self.doc_headers[page] = headers
+                    self.subsection_words[page] = subsec_words
 
             except Exception as e:
                 print("detect_layout :: Exception :: ", str(e))
