@@ -458,9 +458,9 @@ class resumeparse(object):
                         temp = {"institution_name": institute}
                         continue
 
-                # exp = resumeparse.calculate_experience(line['text'])
-                # if exp:
-                #     temp.update({"date": line[]})
+                # if is_a_daterange(line['text']):
+                #     # breakpoint()
+                #     temp.update({"date": line['text']})
                 #     continue
 
             out.append(temp)
@@ -579,11 +579,11 @@ class resumeparse(object):
         total_exp, text = resumeparse.get_experience(resume_segments)
 
 
-        education  = resumeparse.education_details_extraction(resume_subsections.get('education_and_training', []))
+        education  = resumeparse.education_details_extraction(resume_subsections.get('education_and_training', {}))
 
         skills = []
 
-        experience_subsections = resumeparse.extract_work_employment(resume_subsections.get('work_and_employment', []))
+        experience_subsections = resumeparse.extract_work_employment(resume_subsections.get('work_and_employment', {}))
 
         if len(skills) == 0 and resume_segments.get('skills', []):
             skills = resumeparse.extract_skills(' '.join(resume_segments['skills']['sentences']))
