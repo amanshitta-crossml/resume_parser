@@ -14,21 +14,21 @@ import phonenumbers
 import pdfplumber
 
 import logging
+import string
 import spacy
 from spacy.matcher import Matcher
 from spacy.matcher import PhraseMatcher
 
 import nltk
-from stemming.porter2 import stem
 from fuzzywuzzy import fuzz
 
 from resume_parser.ResumeLayout import ResumeLayoutParser, form_sentences
-from resume_parser.layout_config import RESUME_HEADERS
+from resume_parser.layout_config import *
 
 # from ResumeLayout import ResumeLayoutParser, form_sentences
-# from layout_config import RESUME_HEADERS
+# from layout_config import RESUME_HEADERS, EDU_RESERVED_WORDS
 
-from test import *
+from helper import *
 
 # bert
 from transformers import AutoTokenizer, AutoModelForTokenClassification
@@ -42,6 +42,13 @@ def bert_organisation(line):
 
     ner_results = nlp(line.strip())
     return ner_results
+
+# nltk uni
+nltk.download('stopwords')
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
+nltk.download('maxent_ne_chunker')
+nltk.download('words')
 
 # load pre-trained model
 base_path = os.path.dirname(__file__)
@@ -58,7 +65,7 @@ matcher = Matcher(nlp.vocab)
 file = os.path.join(base_path,"titles_combined.txt")
 file = open(file, "r", encoding='utf-8')
 designation = [line.strip().lower() for line in file]
-designitionmatcher = PhraseMatcher(nlp.vocab)
+designitionmatcher = PhraseMatcher(custom_nlp3.vocab)
 patterns = [nlp.make_doc(text) for text in designation if len(nlp.make_doc(text)) < 10]
 designitionmatcher.add("Job title", None, *patterns)
 
@@ -412,6 +419,53 @@ class resumeparse(object):
                     college_name.append(listex[i])
         
         return college_name
+    
+    def get_university(line):
+        """
+        parse possible college/uni name lines
+        """
+        organizations = []
+        line = line.translate(str.maketrans('', '', string.punctuation))
+        for sent in nltk.sent_tokenize(line):
+            
+            for chunk in nltk.ne_chunk(nltk.pos_tag(nltk.word_tokenize(sent))):
+                if hasattr(chunk, 'label') and chunk.label() == 'ORGANIZATION' or hasattr(chunk, 'label') and chunk.label() == 'PERSON':
+                    tags = [tag for tagged_word, tag in chunk]
+                    if 'NNP' in tags or 'NNS' in tags:
+                        organizations.append(line)
+                else:
+                    tags = [tag for tag in chunk]
+                    if 'NNP' in tags or 'NNS' in tags:
+                        organizations.append(line) 
+
+        for org in organizations:
+            for word in EDU_RESERVED_WORDS:
+                if org.lower().find(word) >= 0:
+                    return line
+        return None
+
+    def education_details_extraction(education_subsections):
+        out = []
+        # Extract College/Uni/School
+        for idx, subsection in education_subsections.items():
+            subsection_lines = form_sentences(subsection)[0]
+            temp = {}
+            extra_text = []
+            for line in subsection_lines:
+                if not temp.get('institution_name'):
+                    institute = resumeparse.get_university(line['text'])
+                    if institute:
+                        temp = {"institution_name": institute}
+                        continue
+
+                # exp = resumeparse.calculate_experience(line['text'])
+                # if exp:
+                #     temp.update({"date": line[]})
+                #     continue
+
+            out.append(temp)
+        return out
+        pass
 
     def job_designition(text):
         job_titles = []
@@ -491,7 +545,7 @@ class resumeparse(object):
             out.append(temp)
         return out
 
-    def read_file(file,docx_parser = "tika"):
+    def read_file(file, docx_parser = "tika"):
         """
         file : Give path of resume file
         docx_parser : Enter docx2txt or tika, by default is tika
@@ -514,23 +568,24 @@ class resumeparse(object):
             lines, sentences, _ = form_sentences(segment)
             resume_segments.update({key: {'lines': [i['text'] for i in lines], 'sentences': [i['text'] for i in sentences]}})
 
-        email = resumeparse.extract_email(' '.join(resume_segments['contact_info']['lines']))
+        email = resumeparse.extract_email(' '.join(resume_segments.get('contact_info', []).get('lines', [])))
 
-        phone = resumeparse.find_phone(' '.join(resume_segments['contact_info']['lines']))
+        phone = resumeparse.find_phone(' '.join(resume_segments.get('contact_info', []).get('lines', [])))
 
-        name = resumeparse.extract_name(" ".join(resume_segments['contact_info']['lines']))
+        name = resumeparse.extract_name(" ".join(resume_segments.get('contact_info', []).get('lines', [])))
 
-        location = resumeparse.extract_location(" ".join(resume_segments['contact_info']['lines']))
+        location = resumeparse.extract_location(" ".join(resume_segments.get('contact_info', []).get('lines', [])))
 
         total_exp, text = resumeparse.get_experience(resume_segments)
 
-        university = resumeparse.extract_university(' '.join(resume_segments['education_and_training']['lines']), os.path.join(base_path,'world-universities.csv'))
+
+        education  = resumeparse.education_details_extraction(resume_subsections.get('education_and_training', []))
 
         skills = []
 
-        experience_subsections = resumeparse.extract_work_employment(resume_subsections['work_and_employment'])
+        experience_subsections = resumeparse.extract_work_employment(resume_subsections.get('work_and_employment', []))
 
-        if len(skills) == 0 and resume_segments['skills']:
+        if len(skills) == 0 and resume_segments.get('skills', []):
             skills = resumeparse.extract_skills(' '.join(resume_segments['skills']['sentences']))
         skills = list(dict.fromkeys(skills).keys())
         return {
@@ -539,12 +594,11 @@ class resumeparse(object):
             "name": name,
             "total_exp": total_exp,
             "location": location,
-            "university": university,
             "certificate": resume_segments['certificate']['sentences'],
             'projects': resume_segments['projects']['sentences'],
             "languages": resume_segments['language']['lines'],
             "interests": resume_segments['interests']['sentences'],
-            "education": resume_segments['education_and_training']['lines'],
+            "education": education,
             "skills": skills,
             "experience": experience_subsections
         }
