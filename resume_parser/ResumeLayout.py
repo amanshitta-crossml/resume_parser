@@ -1,7 +1,8 @@
 import pdfplumber
-from helper import *
 from fuzzywuzzy import fuzz
 from resume_parser.layout_config import *
+from resume_parser.helper import *
+# from helper import *
 # from layout_config import RESUME_HEADERS, EDU_RESERVED_WORDS
 
 class ResumeLayoutParser():
