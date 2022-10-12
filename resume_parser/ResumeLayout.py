@@ -2,9 +2,8 @@ import enum
 import pdfplumber
 from helper import *
 from fuzzywuzzy import fuzz
-from resume_parser.layout_config import RESUME_HEADERS
-
-# from layout_config import RESUME_HEADERS
+from resume_parser.layout_config import *
+# from layout_config import RESUME_HEADERS, EDU_RESERVED_WORDS
 
 class ResumeLayoutParser():
 
@@ -285,7 +284,6 @@ class ResumeLayoutParser():
 
             except Exception as e:
                 print("detect_layout :: Exception :: ", str(e))
-                
                 
     def process_resume(self):
             self.detect_layout()
