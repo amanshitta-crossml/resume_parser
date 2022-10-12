@@ -24,11 +24,11 @@ from fuzzywuzzy import fuzz
 
 from resume_parser.ResumeLayout import ResumeLayoutParser, form_sentences
 from resume_parser.layout_config import *
+from resume_parser.helper import *
 
 # from ResumeLayout import ResumeLayoutParser, form_sentences
-# from layout_config import RESUME_HEADERS, EDU_RESERVED_WORDS
-
-from helper import *
+# from layout_config import *
+# from helper import *
 
 # bert
 from transformers import AutoTokenizer, AutoModelForTokenClassification
