@@ -110,6 +110,7 @@ class ResumeLayoutParser():
         headers = []
         
         for column_name, column in column_data.items():
+            if not column: continue
             sorted_columns = sorted(column, key=lambda x:x['top'])
             headers.extend(sorted_columns)
             header_top_list = [col['top'] for col in sorted_columns]
