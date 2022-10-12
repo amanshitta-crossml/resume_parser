@@ -451,21 +451,27 @@ class resumeparse(object):
             subsection_lines = form_sentences(subsection)[0]
             temp = {}
             extra_text = []
+            extra_text = []
+            flag = False
             for line in subsection_lines:
                 if not temp.get('institution_name'):
                     institute = resumeparse.get_university(line['text'])
                     if institute:
+                        flag = True
                         temp = {"institution_name": institute}
                         continue
 
+                if not flag:
+                    extra_text.append(line['text'])
+
                 # if is_a_daterange(line['text']):
-                #     # breakpoint()
                 #     temp.update({"date": line['text']})
                 #     continue
 
+            temp.update({'raw_text': extra_text})
             out.append(temp)
         return out
-        pass
+
 
     def job_designition(text):
         job_titles = []
