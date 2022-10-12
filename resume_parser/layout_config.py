@@ -141,3 +141,24 @@ RESUME_HEADERS = {
         'theses',
         ]
 }
+
+EDU_RESERVED_WORDS = [
+            'school',
+            'university',
+            'institute',
+            'college',
+            'univers',
+            'academy',
+            'faculty',
+            'institute',
+            'faculdades',
+            'Schola',
+            'schule',
+            'lise',
+            'lyceum',
+            'lycee',
+            'polytechnic',
+            'kolej',
+            'ünivers',
+            'okul',
+        ]
