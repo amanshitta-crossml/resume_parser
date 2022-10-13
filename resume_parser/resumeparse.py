@@ -1,5 +1,4 @@
 import nltk
-
 import re
 import os
 from datetime import date
@@ -30,18 +29,6 @@ from resume_parser.helper import *
 # from layout_config import *
 # from helper import *
 
-# bert
-from transformers import AutoTokenizer, AutoModelForTokenClassification
-from transformers import pipeline
-
-def bert_organisation(line):
-    tokenizer = AutoTokenizer.from_pretrained("dslim/bert-base-NER")
-    model = AutoModelForTokenClassification.from_pretrained("dslim/bert-base-NER")
-
-    nlp = pipeline("ner", model=model, tokenizer=tokenizer)
-
-    ner_results = nlp(line.strip())
-    return ner_results
 
 # nltk uni
 nltk.download('stopwords')
@@ -77,7 +64,21 @@ patterns = [nlp.make_doc(text) for text in skill if len(nlp.make_doc(text)) < 10
 skillsmatcher.add("Job title", None, *patterns)
 
 
+# bert
+from transformers import AutoTokenizer, AutoModelForTokenClassification
+from transformers import pipeline
+
+BERT_TOKENIZER = AutoTokenizer.from_pretrained("dslim/bert-base-NER")
+BERT_MODEL = AutoModelForTokenClassification.from_pretrained("dslim/bert-base-NER")
+
 nlp = spacy.load('en_core_web_sm')
+
+def bert_organisation(line):
+    nlp = pipeline("ner", model=BERT_MODEL, tokenizer=BERT_TOKENIZER)
+
+    ner_results = nlp(line.strip())
+    return ner_results
+
 class resumeparse(object):
 
     def convert_docx_to_txt(docx_file,docx_parser):
@@ -213,7 +214,7 @@ class resumeparse(object):
         return resume_segments, resume_subsections
 
     def calculate_experience(resume_text):
-        
+        date_text = resume_text[:]
         #
         # def get_month_index(month):
         #   month_dict = {'jan':1, 'feb':2, 'mar':3, 'apr':4, 'may':5, 'jun':6, 'jul':7, 'aug':8, 'sep':9, 'oct':10, 'nov':11, 'dec':12}
@@ -239,9 +240,12 @@ class resumeparse(object):
         number = r'(\d{2})'
 
         months_num = r'(01)|(02)|(03)|(04)|(05)|(06)|(07)|(08)|(09)|(10)|(11)|(12)'
-        months_short = r'(jan)|(feb)|(mar)|(apr)|(may)|(jun)|(jul)|(aug)|(sep)|(oct)|(nov)|(dec)'
-        months_long = r'(january)|(february)|(march)|(april)|(may)|(june)|(july)|(august)|(september)|(october)|(november)|(december)'
-        month = r'(' + months_num + r'|' + months_short + r'|' + months_long + r')'
+        # months_short = r'(jan)|(feb)|(mar)|(apr)|(may)|(jun)|(jul)|(aug)|(sep)|(oct)|(nov)|(dec)'
+        # months_long = r'(january)|(february)|(march)|(april)|(may)|(june)|(july)|(august)|(september)|(october)|(november)|(december)'
+        # month = r'(' + months_num + r'|' + months_short + r'|' + months_long + r')'
+        MONTHS_PATTERN = r"january|february|march|april|may|june|july|august|september|october|november|december|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december|jan\.?|ene\.?|feb\.?|mar\.?|apr\.?|abr\.?|may\.?|maj\.?|jun\.?|jul\.?|aug\.?|ago\.?|sep\.?|sept\.?|oct\.?|okt\.?|nov\.?|dec\.?|dic\.?"
+        month = r'(' + months_num + r'|' + MONTHS_PATTERN + r')'
+
         regex_year = r'((20|19)(\d{2})|(\d{2}))'
         year = regex_year
         start_date = month + not_alpha_numeric + r"?" + year
@@ -261,22 +265,14 @@ class resumeparse(object):
 
           try:
             date_range = regex_result.group()
-            # print(date_range)
-            # print("*"*100)
             try:
               
-                year_range_find = re.compile(year_range, re.IGNORECASE)
-                year_range_find = re.search(year_range_find, date_range)
-                # print("year_range_find",year_range_find.group())
-                                
-                # replace = re.compile(r"(" + not_alpha_numeric + r"{1,4}|(\s*to\s*))", re.IGNORECASE)
+                year_range_patt = re.compile(year_range, re.IGNORECASE)
+                year_range_find = re.search(year_range_patt, date_range)
+
                 replace = re.compile(r"((\s*to\s*)|" + not_alpha_numeric + r"{1,4})", re.IGNORECASE)
                 replace = re.search(replace, year_range_find.group().strip())
-                # print(replace.group())
-                # print(year_range_find.group().strip().split(replace.group()))
                 start_year_result, end_year_result = year_range_find.group().strip().split(replace.group())
-                # print(start_year_result, end_year_result)
-                # print("*"*100)
                 start_year_result = int(correct_year(start_year_result))
                 if (end_year_result.lower().find('present') != -1 or 
                     end_year_result.lower().find('current') != -1 or 
@@ -290,8 +286,8 @@ class resumeparse(object):
 
             except Exception as e:
                 # logging.error(str(e))
-                start_date_find = re.compile(start_date, re.IGNORECASE)
-                start_date_find = re.search(start_date_find, date_range)
+                start_date_patt = re.compile(start_date, re.IGNORECASE)
+                start_date_find = re.search(start_date_patt, date_range)
 
                 non_alpha = re.compile(not_alpha_numeric, re.IGNORECASE)
                 non_alpha_find = re.search(non_alpha, start_date_find.group().strip())
@@ -301,13 +297,7 @@ class resumeparse(object):
                 date_range = date_range[replace.end():]
         
                 start_year_result = start_date_find.group().strip().split(non_alpha_find.group())[-1]
-
-                # if len(start_year_result)<2:
-                #   if int(start_year_result) > int(str(date.today().year)[-2:]):
-                #     start_year_result = str(int(str(date.today().year)[:-2]) - 1 )+start_year_result
-                #   else:
-                #     start_year_result = str(date.today().year)[:-2]+start_year_result
-                # start_year_result = int(start_year_result)
+                
                 start_year_result = int(correct_year(start_year_result))
 
                 if date_range.lower().find('present') != -1 or date_range.lower().find('current') != -1:
@@ -319,12 +309,6 @@ class resumeparse(object):
 
                     end_year_result = end_date_find.group().strip().split(non_alpha_find.group())[-1]
 
-                    # if len(end_year_result)<2:
-                    #   if int(end_year_result) > int(str(date.today().year)[-2:]):
-                    #     end_year_result = str(int(str(date.today().year)[:-2]) - 1 )+end_year_result
-                    #   else:
-                    #     end_year_result = str(date.today().year)[:-2]+end_year_result
-                    # end_year_result = int(end_year_result)
                     try:
                       end_year_result = int(correct_year(end_year_result))
                     except Exception as e:
@@ -342,7 +326,7 @@ class resumeparse(object):
             logging.error(str(e))
             resume_text = resume_text[regex_result.end():].strip()
             regex_result = re.search(regular_expression, resume_text)
-            
+
         return end_year - start_year  # Use the obtained month attribute
 
     def get_experience(resume_segments):
@@ -395,7 +379,6 @@ class resumeparse(object):
         location = ''
         try:         
             parsed_addr = nlp(resume_text)
-            # breakpoint()
             for ent in parsed_addr.ents:
                 if ent.label_ == 'GPE':
                     location = ent.text
@@ -461,17 +444,23 @@ class resumeparse(object):
                         temp = {"institution_name": institute}
                         continue
 
+                elif is_a_daterange(line['text']):
+                    _, range = is_a_daterange(line['text'], extract_range=True)
+                    if range:
+                        if len(range.split('-')) == 2:
+                            start, end = range.split('-')
+                        else:
+                            start, end = '', range
+                        temp.update({"joining_year": start, "passing_year": end})
+                        continue
+
                 if not flag:
                     extra_text.append(line['text'])
 
-                # if is_a_daterange(line['text']):
-                #     temp.update({"date": line['text']})
-                #     continue
-
+                
             temp.update({'raw_text': extra_text})
             out.append(temp)
         return out
-
 
     def job_designition(text):
         job_titles = []
@@ -524,6 +513,10 @@ class resumeparse(object):
 
         return org_name.strip()
 
+    def extract_designation(line):
+        # IPOD
+        return ''
+
     def extract_work_employment(experience_subsections):
         out = []
         # Extract Organisation
@@ -531,24 +524,42 @@ class resumeparse(object):
             subsection_lines = form_sentences(subsection)[0]
             temp = {}
             extra_text = []
-            for line in subsection_lines:
+            parsed = []
+            designation = ''
+            for idxx, line in enumerate(subsection_lines):
                 if not temp.get('organisation_name'):
                     org = bert_organisation(line['text'])
                     if org:
                         org_name = resumeparse.parse_org_name(org)
                         if org_name :
+                            parsed.append(idxx)
                             temp = {"organisation_name": org_name}
                             continue
-                
-                exp = resumeparse.calculate_experience(line['text'])
-                if exp:
-                    temp.update({"experience": exp})
+                if not temp.get('designation'):
+                    designation = resumeparse.extract_designation(line['text'])
+                    if designation:
+                        parsed.append(idxx)
+                        continue
+
+                if is_a_daterange(line['text']):
+                    _, range = is_a_daterange(line['text'], extract_range=True)
+                    if range:
+                        parsed.append(idxx)
+                        if len(range.split('-')) == 2:
+                            start, end = range.split('-')
+                        else:
+                            start, end = range, ''
+                    temp.update({"joining_date": start, "relieving_date": end})
                     continue
                 else:
                     extra_text.append(line)
+            
+            if not temp.get('designation'):
+                designation = designation_fallback(parsed, subsection_lines)
 
-            temp.update({'job_role': [i['text'] for i in sorted(extra_text, key= lambda x: (x['top'], x['x1']))]})
+            temp.update({'designation': designation, 'job_role': [i['text'] for i in sorted(extra_text, key= lambda x: (x['top'], x['x1'])) if i['text'] != designation]})
             out.append(temp)
+
         return out
 
     def read_file(file, docx_parser = "tika"):
@@ -584,11 +595,9 @@ class resumeparse(object):
 
         total_exp, text = resumeparse.get_experience(resume_segments)
 
-
         education  = resumeparse.education_details_extraction(resume_subsections.get('education_and_training', {}))
 
         skills = []
-
         experience_subsections = resumeparse.extract_work_employment(resume_subsections.get('work_and_employment', {}))
 
         if len(skills) == 0 and resume_segments.get('skills', []):
