@@ -41,7 +41,7 @@ def words_concat_or_not(line, avg, processed = []):
             if idx in processed: continue
 
             if line[idx+1]['x0']-line[idx]['x1'] <= avg:
-                new_line = {'text': line[idx]['text']+" "+line[idx+1]['text'], 'x0':line[idx]['x0'], 'x1':line[idx+1]['x1'],  'top':line[idx]['top'], 'doctop':line[idx]['doctop'], 'bottom':line[idx+1]['bottom'], 'upright':line[idx+1]['upright'], 'direction':line[idx]['direction']}
+                new_line = {'text': line[idx]['text']+" "+line[idx+1]['text'], 'x0':line[idx]['x0'], 'x1':line[idx+1]['x1'],  'top':line[idx]['top'], 'doctop':line[idx]['doctop'], 'bottom':line[idx+1]['bottom'], 'upright':line[idx+1]['upright'], 'direction':line[idx]['direction'], 'stroking_color':line[idx]['stroking_color'], 'fontname': line[idx].get('fontname', ''), 'size': line[idx]['size']}
                 lines.append(new_line)
                 processed.extend([idx,idx+1])
             else:
@@ -74,7 +74,10 @@ def lines_concat_or_not(lines_list, avg_height_diff):
                                 'doctop':min([i['doctop'] for i in lines_list[line_idx:line_idx+2]]),
                                 'bottom': max([i['bottom'] for i in lines_list[line_idx:line_idx+2]]),
                                 'upright':lines_list[line_idx+1]['upright'],
-                                'direction': lines_list[line_idx]['direction']
+                                'direction': lines_list[line_idx]['direction'],
+                                'stroking_color':lines_list[line_idx]['stroking_color'], 
+                                'fontname': lines_list[line_idx].get('fontname', ''), 
+                                'size': lines_list[line_idx].get('size', '')
                                 }
 
                 formed_sentence.append(new_sentence)
@@ -112,7 +115,10 @@ def lines_concat_or_not_par(lines_list, avg_height_diff):
                                 'doctop':min([i['doctop'] for i in lines_list[line_idx:line_idx+2]]),
                                 'bottom': max([i['bottom'] for i in lines_list[line_idx:line_idx+2]]),
                                 'upright':lines_list[line_idx+1]['upright'],
-                                'direction': lines_list[line_idx]['direction']
+                                'direction': lines_list[line_idx]['direction'],
+                                'stroking_color':lines_list[line_idx]['stroking_color'], 
+                                'fontname': lines_list[line_idx].get('fontname', ''), 
+                                'size': lines_list[line_idx].get('size', '')
                                 }
                 formed_sentence.append(new_sentence)
                 processed.append(line_idx)
@@ -145,7 +151,7 @@ def form_sentences(lines_list):
             else:
                 half_avg = sum([ceil(line[0]['x1'] - line[0]['x0'])//2, ceil(line[-1]['x1']-line[-1]['x0'])//2])/2
                 if line[-1]['x0'] - line[0]['x1'] <= half_avg:
-                    new_line = [{'text': line[0]['text']+" "+line[-1]['text'], 'x0':line[0]['x0'], 'x1':line[-1]['x1'],  'top':line[0]['top'], 'doctop':line[0]['doctop'], 'bottom':line[-1]['bottom'], 'upright':line[-1]['upright'], 'direction':line[0]['direction']}]
+                    new_line = [{'text': line[0]['text']+" "+line[-1]['text'], 'x0':line[0]['x0'], 'x1':line[-1]['x1'],  'top':line[0]['top'], 'doctop':line[0]['doctop'], 'bottom':line[-1]['bottom'], 'upright':line[-1]['upright'], 'direction':line[0]['direction'], 'stroking_color':line[0]['stroking_color'], 'fontname': line[0].get('fontname', '')}]
                     formed_line.extend(new_line)
                 else:
                     formed_line.extend(line)
@@ -198,14 +204,15 @@ def form_sentences(lines_list):
 
     return lines, formed_sentences, formed_paras
 
-def is_a_daterange(line):
+def is_a_daterange(line, extract_range=False):
     not_alpha_numeric = r'[^a-zA-Z\d]'
     number = r'(\d{2})'
 
     months_num = r'(01)|(02)|(03)|(04)|(05)|(06)|(07)|(08)|(09)|(10)|(11)|(12)'
-    months_short = r'(jan)|(feb)|(mar)|(apr)|(may)|(jun)|(jul)|(aug)|(sep)|(oct)|(nov)|(dec)'
-    months_long = r'(january)|(february)|(march)|(april)|(may)|(june)|(july)|(august)|(september)|(october)|(november)|(december)'
-    month = r'(' + months_num + r'|' + months_short + r'|' + months_long + r')'
+    # months_short = r'(jan)|(feb)|(mar)|(apr)|(may)|(jun)|(jul)|(aug)|(sep)|(oct)|(nov)|(dec)'
+    MONTHS_PATTERN = r"january|february|march|april|may|june|july|august|september|october|november|december|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december|jan\.?|ene\.?|feb\.?|mar\.?|apr\.?|abr\.?|may\.?|maj\.?|jun\.?|jul\.?|aug\.?|ago\.?|sep\.?|sept\.?|oct\.?|okt\.?|nov\.?|dec\.?|dic\.?"
+    # months_long = r'(january)|(february)|(march)|(april)|(may)|(june)|(july)|(august)|(september)|(october)|(november)|(december)'
+    month = r'(' + months_num + r'|' + MONTHS_PATTERN + r')'
     term = r'(summer|spring|winter|fall|)'
     regex_year = r'((20|19)(\d{2})|(\d{2}))'
     year = regex_year
@@ -219,7 +226,47 @@ def is_a_daterange(line):
     regular_expression = re.compile(date_range, re.IGNORECASE)
     
     regex_result = re.search(regular_expression, line)
-    
+
     if regex_result:
-        return True
+        if not extract_range:
+            return True
+        else:
+            return True, regex_result.group()
+    
+
+
+def group_lines(words):
+    word_dict = {}
+    sentence_dict = {}
+    for word in words:
+        key = (word['size'],word['fontname'], tuple(word['stroking_color']) if isinstance(word['stroking_color'], list) else word['stroking_color'], word['isUpper'])
+        if key in word_dict:
+            word_dict[key].append(word)
+        else:
+            word_dict[key] = [word]
+    return word_dict
+  
+def designation_fallback(parsed, subsection_lines):
+    possible_designations = []
+    lines = [line for idx, line in enumerate(subsection_lines) if idx not in parsed]
+    for word in lines:
+        word['size'] = word['bottom'] - word['top']
+        word['isUpper'] = word['text'].isupper()
+
+    grouped_lines = group_lines(lines)
+    max_key = max(grouped_lines.keys(),key=lambda x:x[0])
+    for key, value in grouped_lines.items():
+        if key[0] == max_key[0] or 'bold' in key[1].lower():
+            vals = []
+            for val in value:
+                try:
+                    ord(val['text'])
+                except:
+                    if len(val['text'].split()) < 6:
+                        vals.append(val)
+            if vals:
+                possible_designations.extend(vals)
+    
+    return possible_designations[0]['text'] if  possible_designations else ''
+
 
