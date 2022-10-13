@@ -2,6 +2,7 @@ import nltk
 import re
 import os
 from datetime import date
+import datefinder
 from fuzzywuzzy import process
 import spacy
 
@@ -71,9 +72,12 @@ from transformers import pipeline
 BERT_TOKENIZER = AutoTokenizer.from_pretrained("dslim/bert-base-NER")
 BERT_MODEL = AutoModelForTokenClassification.from_pretrained("dslim/bert-base-NER")
 
+# CAMEBERT_TOKENIZER = AutoTokenizer.from_pretrained("Jean-Baptiste/camembert-ner")
+# CAMEBERT_MODEL = AutoModelForTokenClassification.from_pretrained("Jean-Baptiste/camembert-ner")
+
 nlp = spacy.load('en_core_web_sm')
 
-def bert_organisation(line):
+def ner_entity_extraction(line):
     nlp = pipeline("ner", model=BERT_MODEL, tokenizer=BERT_TOKENIZER)
 
     ner_results = nlp(line.strip())
@@ -339,6 +343,34 @@ class resumeparse(object):
             return total_exp, text
         return total_exp, " "
 
+    def sum_experience(start, end):
+        exp = ''
+        try:
+            try:
+                start = [i for i in datefinder.find_dates(start)][0]
+                end = [i for i in datefinder.find_dates(end)][0]
+            except:
+                # do nothing
+                pass
+            if not end or isinstance(end, str):
+                end = date.today()
+            else:
+                end = end.date()
+
+            if start and end:
+                start = start.date()
+            
+            days = (end - start).days
+            months = days/30
+
+            exp = str(round(months))
+
+        except Exception as e:
+            breakpoint()
+            print("Exception :: sum_experience :: ", e)
+
+        return exp
+
     def find_phone(text):
         try:
             return list(iter(phonenumbers.PhoneNumberMatcher(text, None)))[0].raw_string
@@ -500,8 +532,8 @@ class resumeparse(object):
         skills = list(set(skills))
         return skills
 
-    def parse_org_name(org):
-        org_list = [(i['word']) for i in org if 'ORG' in i['entity']]
+    def parse_bert_str(org, ent_type='ORG'):
+        org_list = [(i['word']) for i in org if ent_type in i['entity']]
 
         org_name = ''
         for org_token in org_list:
@@ -519,28 +551,42 @@ class resumeparse(object):
 
     def extract_work_employment(experience_subsections):
         out = []
-        # Extract Organisation
+        # Extract organization
         for idx, subsection in experience_subsections.items():
             subsection_lines = form_sentences(subsection)[0]
             temp = {}
             extra_text = []
             parsed = []
             designation = ''
+            experience = ''
             for idxx, line in enumerate(subsection_lines):
-                if not temp.get('organisation_name'):
-                    org = bert_organisation(line['text'])
+
+                # get organisation name
+                if not temp.get('organization_name'):
+                    org = ner_entity_extraction(line['text'])
                     if org:
-                        org_name = resumeparse.parse_org_name(org)
+                        org_name = resumeparse.parse_bert_str(org)
                         if org_name :
                             parsed.append(idxx)
-                            temp = {"organisation_name": org_name}
-                            continue
+                            temp = {"organization_name": org_name}
+
+                # get job location
+                if not temp.get('job_location'):
+                    loc  = ner_entity_extraction(line['text'])
+                    if loc:
+                        loc_name = resumeparse.parse_bert_str(org, ent_type='LOC')
+                        if loc_name :
+                            parsed.append(idxx)
+                            temp.update({"job_location": loc_name})
+
+                # get designation
                 if not temp.get('designation'):
                     designation = resumeparse.extract_designation(line['text'])
                     if designation:
                         parsed.append(idxx)
                         continue
 
+                # get joining and relieving date
                 if is_a_daterange(line['text']):
                     _, range = is_a_daterange(line['text'], extract_range=True)
                     if range:
@@ -549,11 +595,17 @@ class resumeparse(object):
                             start, end = range.split('-')
                         else:
                             start, end = range, ''
-                    temp.update({"joining_date": start, "relieving_date": end})
+                    # if start and end:
+                    #     experience = resumeparse.sum_experience(start, end)
+
+                    temp.update({"joining_date": start, "relieving_date": end, 'experience': experience})
                     continue
                 else:
                     extra_text.append(line)
-            
+            """
+            fallback for designation by
+            grouping words based in the styling params (size, fontname, bold, uppercase)
+            """
             if not temp.get('designation'):
                 designation = designation_fallback(parsed, subsection_lines)
 
