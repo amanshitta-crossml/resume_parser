@@ -156,8 +156,8 @@ def form_sentences(lines_list):
                 else:
                     formed_line.extend(line)
         else:
-            avg_diff_list = [(line[idx+1]['x0'] - line[idx]['x1']) for idx in range(len(line)-1)]
-            avg = ceil(sum(avg_diff_list)/len(avg_diff_list))
+            avg_diff_list = [abs(line[idx+1]['x0'] - line[idx]['x1']) for idx in range(len(line)-1)]
+            avg = ceil(sum(avg_diff_list)/len([idx for idx in range(len(line)-1) if (line[idx+1]['x0'] - line[idx]['x1'])>1]))
             new_line = []
             while True:
                 new_line = words_concat_or_not(line, avg, processed = [])
