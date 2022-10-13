@@ -108,7 +108,7 @@ class ResumeLayoutParser():
         sections_data = {}
         sections_data['FREE_TEXT'] = []
         headers = []
-        
+
         for column_name, column in column_data.items():
             if not column: continue
             sorted_columns = sorted(column, key=lambda x:x['top'])
@@ -190,7 +190,6 @@ class ResumeLayoutParser():
     def extract_work_subsection(self, section_header, section_words, headers):
 
         sub_sections = {}
-
         section_top = [i for i in headers if i['text']==section_header][0]['bottom']
         lines = form_sentences(section_words)[0]
         dates = (self.detect_date_range(lines))
@@ -199,7 +198,11 @@ class ResumeLayoutParser():
             first_date = sorted(dates, key=lambda x: x['top'])[0]
             date_dist = first_date['top']-section_top
             for idx in range(len(dates)-1):
-                top = dates[idx]['bottom'] - date_dist
+                if idx == 0:
+                    top = dates[idx]['top'] - date_dist
+                else:
+                    top = dates[idx]['bottom'] - date_dist
+
                 bottom = dates[idx+1]['bottom'] - date_dist
 
                 if idx > 0 and dates[idx]['bottom']-date_dist < dates[idx-1]['bottom']:
@@ -256,7 +259,7 @@ class ResumeLayoutParser():
                 for idx, cord in cords.items():
                     subsec_words[header][idx] = []
                     for word in self.words[page]:
-                        if word['x0'] >= cord[0] and word['top']>=cord[1] and word['x1'] <= cord[2] and word['bottom'] <= cord[3]:
+                        if word['x0'] >= cord[0] and word['bottom']>cord[1] and word['x1'] <= cord[2] and word['bottom'] <= cord[3]:
                             subsec_words[header][idx].append(word)
         except Exception as e:
             print("get_subsection_words :: Exception :: ", str(e))                
