@@ -266,7 +266,12 @@ def designation_fallback(parsed, subsection_lines):
                         vals.append(val)
             if vals:
                 possible_designations.extend(vals)
-    
+    try:
+        possible_designations = sorted(possible_designations, key = lambda x: x['isUpper'], reverse=True)
+    except:
+        # do nothing
+        pass
+
     return possible_designations[0]['text'] if  possible_designations else ''
 
 
