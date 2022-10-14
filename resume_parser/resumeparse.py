@@ -474,8 +474,17 @@ class resumeparse(object):
                     if institute:
                         flag = True
                         temp = {"institution_name": institute}
-                        continue
 
+                # get education location
+                if not temp.get('education_location'):
+                    loc  = ner_entity_extraction(line['text'])
+                    if loc:
+                        loc_name = resumeparse.parse_bert_str(loc, ent_type='LOC')
+                        if loc_name :
+                            temp.update({"education_location": loc_name})
+                            flag = True
+
+                # get education dates
                 elif is_a_daterange(line['text']):
                     _, range = is_a_daterange(line['text'], extract_range=True)
                     if range:
@@ -484,7 +493,7 @@ class resumeparse(object):
                         else:
                             start, end = '', range
                         temp.update({"joining_year": start, "passing_year": end})
-                        continue
+                        flag = True
 
                 if not flag:
                     extra_text.append(line['text'])
