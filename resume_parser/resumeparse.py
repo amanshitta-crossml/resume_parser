@@ -9,7 +9,7 @@ import spacy
 import nltk
 import docx2txt
 import pandas as pd
-from tika import parser
+# from tika import parser
 import phonenumbers
 import pdfplumber
 
@@ -111,7 +111,8 @@ class resumeparse(object):
         #     return resume_lines
         try:
           if docx_parser == "tika":
-            text = parser.from_file(docx_file, service='text')['content']
+            pass
+            # text = parser.from_file(docx_file, service='text')['content']
           elif docx_parser == "docx2txt":
             text = docx2txt.process(docx_file)
           else:
@@ -366,7 +367,6 @@ class resumeparse(object):
             exp = str(round(months))
 
         except Exception as e:
-            breakpoint()
             print("Exception :: sum_experience :: ", e)
 
         return exp
@@ -560,7 +560,7 @@ class resumeparse(object):
             designation = ''
             experience = ''
             for idxx, line in enumerate(subsection_lines):
-
+                FLAG = False
                 # get organisation name
                 if not temp.get('organization_name'):
                     org = ner_entity_extraction(line['text'])
@@ -569,22 +569,24 @@ class resumeparse(object):
                         if org_name :
                             parsed.append(idxx)
                             temp = {"organization_name": org_name}
+                            FLAG = True
 
                 # get job location
                 if not temp.get('job_location'):
                     loc  = ner_entity_extraction(line['text'])
                     if loc:
-                        loc_name = resumeparse.parse_bert_str(org, ent_type='LOC')
+                        loc_name = resumeparse.parse_bert_str(loc, ent_type='LOC')
                         if loc_name :
                             parsed.append(idxx)
                             temp.update({"job_location": loc_name})
+                            FLAG = True
 
                 # get designation
                 if not temp.get('designation'):
                     designation = resumeparse.extract_designation(line['text'])
                     if designation:
                         parsed.append(idxx)
-                        continue
+                        FLAG = True
 
                 # get joining and relieving date
                 if is_a_daterange(line['text']):
@@ -599,8 +601,9 @@ class resumeparse(object):
                     #     experience = resumeparse.sum_experience(start, end)
 
                     temp.update({"joining_date": start, "relieving_date": end, 'experience': experience})
-                    continue
-                else:
+                    FLAG = True
+                
+                if not FLAG:
                     extra_text.append(line)
             """
             fallback for designation by
