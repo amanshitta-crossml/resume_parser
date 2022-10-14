@@ -66,7 +66,7 @@ def lines_concat_or_not(lines_list, avg_height_diff):
         if line_idx in processed: continue
         try:
             if  0 < (lines_list[line_idx+1]['top']-lines_list[line_idx]['bottom']) <= avg_height_diff and \
-                lines_list[line_idx]['x0']<lines_list[line_idx+1]['x1']:
+                lines_list[line_idx]['x0']<lines_list[line_idx+1]['x1'] and lines_list[line_idx+1]['x0'] <= lines_list[line_idx]['x0'] + (1.5*avg_height_diff):
                 new_sentence = {'text': lines_list[line_idx]['text']+" "+lines_list[line_idx+1]['text'],
                                 'x0': min([i['x0'] for i in lines_list[line_idx:line_idx+2]]),
                                 'top':min([i['top'] for i in lines_list[line_idx:line_idx+2]]),
