@@ -1,3 +1,4 @@
+import imp
 import nltk
 import re
 import os
@@ -377,7 +378,6 @@ class resumeparse(object):
                             temp.update({"education_location": loc_name})
                             flag = True
 
-                # get education dates
                 elif is_a_daterange(line['text']):
                     _, range = is_a_daterange(line['text'], extract_range=True)
                     if range:
@@ -391,10 +391,52 @@ class resumeparse(object):
                 if not flag:
                     extra_text.append(line['text'])
 
+            if not temp.get('degree'):
+                degree = ''
+                if extra_text:
+                    degree, extra_text = resumeparse.get_degree_fallback(extra_text)
+                
+                if degree == '':
+                    _text = [line['text'] for line in subsection_lines]
+                    degree, extra_text = resumeparse.get_degree_fallback(_text)
+                
+                if degree:
+                    temp.update({"degree": degree})
+                    flag = True
 
             temp.update({'raw_text': extra_text})
             out.append(temp)
         return out
+
+    def get_degree(text):
+        try:
+            text = text.translate(str.maketrans('', '', string.punctuation)).lower()
+            text = re.sub(r'[0-9%]', '', text)
+            courses = []
+            courses = [i.lower() for i in DEG_RESERVED_WORDS]
+            if text:
+                word, score = process.extractOne(text, courses, scorer=fuzz.ratio)
+
+                if score>80:
+                    return True
+            
+        except Exception as e:
+            print(str(e))
+        
+        return False
+
+    def get_degree_fallback(extra_text: list):
+        degree = ''
+        try:
+            for line in extra_text:
+                if resumeparse.get_degree(line):
+                    degree = line
+                    extra_text.remove(line)
+            
+        except Exception as e:
+            print(str(e))
+        
+        return degree, extra_text
 
     def job_designition(text):
         job_titles = []
@@ -406,12 +448,6 @@ class resumeparse(object):
             span = __nlp[start:end]
             job_titles.append(span.text)
         return job_titles
-
-    def get_degree(text):
-        degree_df = pd.read_csv(os.path.join(base_path, 'degree.csv'))
-        extracted = process.extractOne(text, degree_df['degree'].to_list(), scorer=fuzz.ratio)
-        if extracted[1]>95:
-            return extracted[0]
 
     def get_company_working(text):
         doc = custom_nlp3(text)
