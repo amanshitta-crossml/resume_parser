@@ -498,7 +498,7 @@ class resumeparse(object):
                 if not flag:
                     extra_text.append(line['text'])
 
-            if not temp.get('education_degree'):
+            if not temp.get('degree'):
                 degree = ''
                 if extra_text:
                     degree, extra_text = resumeparse.get_degree_fallback(extra_text)
@@ -508,37 +508,12 @@ class resumeparse(object):
                     degree, extra_text = resumeparse.get_degree_fallback(_text)
                 
                 if degree:
-                    temp.update({"education_degree": degree})
+                    temp.update({"degree": degree})
                     flag = True
 
             temp.update({'raw_text': extra_text})
             out.append(temp)
         return out
-    
-    def get_degree_fallback(extra_text: list):
-        degree = ''
-        try:
-            for line in extra_text:
-                if resumeparse.get_degree(line):
-                    degree = line
-                    extra_text.remove(line)
-            
-        except Exception as e:
-            print(str(e))
-            breakpoint()
-        
-        return degree, extra_text
-
-    def job_designition(text):
-        job_titles = []
-        
-        __nlp = nlp(text.lower())
-        
-        matches = designitionmatcher(__nlp)
-        for match_id, start, end in matches:
-            span = __nlp[start:end]
-            job_titles.append(span.text)
-        return job_titles
 
     def get_degree(text):
         try:
@@ -554,9 +529,32 @@ class resumeparse(object):
             
         except Exception as e:
             print(str(e))
-            breakpoint()
         
         return False
+
+    def get_degree_fallback(extra_text: list):
+        degree = ''
+        try:
+            for line in extra_text:
+                if resumeparse.get_degree(line):
+                    degree = line
+                    extra_text.remove(line)
+            
+        except Exception as e:
+            print(str(e))
+        
+        return degree, extra_text
+
+    def job_designition(text):
+        job_titles = []
+        
+        __nlp = nlp(text.lower())
+        
+        matches = designitionmatcher(__nlp)
+        for match_id, start, end in matches:
+            span = __nlp[start:end]
+            job_titles.append(span.text)
+        return job_titles
 
     def get_company_working(text):
         doc = custom_nlp3(text)
