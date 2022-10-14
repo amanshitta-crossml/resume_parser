@@ -391,7 +391,7 @@ class resumeparse(object):
                 if not flag:
                     extra_text.append(line['text'])
 
-                
+
             temp.update({'raw_text': extra_text})
             out.append(temp)
         return out
@@ -499,8 +499,8 @@ class resumeparse(object):
                             start, end = range.split('-')
                         else:
                             start, end = range, ''
-                    # if start and end:
-                    #     experience = resumeparse.sum_experience(start, end)
+                    if start and end and all([i not in range.lower() for i in ['present', 'now']]):
+                        experience = resumeparse.sum_experience(start, end)
 
                     temp.update({"joining_date": start, "relieving_date": end, 'experience': experience})
                     FLAG = True

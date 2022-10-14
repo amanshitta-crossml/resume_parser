@@ -75,7 +75,6 @@ RESUME_HEADERS = {
         'work experience',
         'experience',
         'professional experience',
-        'professional experience',
         'professional background',
         'additional experience',
         'career related experience',
