@@ -9,7 +9,7 @@ import spacy
 import nltk
 import docx2txt
 import pandas as pd
-from tika import parser
+# from tika import parser
 import phonenumbers
 import pdfplumber
 
@@ -111,7 +111,8 @@ class resumeparse(object):
         #     return resume_lines
         try:
           if docx_parser == "tika":
-            text = parser.from_file(docx_file, service='text')['content']
+            pass
+            # text = parser.from_file(docx_file, service='text')['content']
           elif docx_parser == "docx2txt":
             text = docx2txt.process(docx_file)
           else:
