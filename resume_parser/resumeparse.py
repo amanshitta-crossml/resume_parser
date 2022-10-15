@@ -10,7 +10,6 @@ import spacy
 import nltk
 import docx2txt
 import pandas as pd
-# from tika import parser
 import phonenumbers
 import pdfplumber
 
