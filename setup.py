@@ -22,11 +22,10 @@ setup(
             'numpy>=1.19.1',
             'pandas>=1.1.0',
             'pdfminer.six>=20200517',            
-            'pdfplumber>=0.5.23',
+            'pdfplumber>=0.7.4',
             'phonenumbers>=8.12.7',
             'spacy>=2.3.2',       
-            'stemming>=1.0.1',
-            'tika>=1.24',            
+            'stemming>=1.0.1',       
       ],
   classifiers=[
     'Development Status :: 3 - Alpha',      # Chose either "3 - Alpha", "4 - Beta" or "5 - Production/Stable" as the current state of your package
